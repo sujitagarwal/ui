@@ -637,7 +637,7 @@ class App
         }
 
         if (!$attr) {
-            return "<$tag>".($value !== null ? $value."</$tag>" : '');
+            return "<$tag>".($value !== null ? $value : '')."</$tag>";
         }
         $tmp = [];
         if (substr($tag, -1) == '/') {
