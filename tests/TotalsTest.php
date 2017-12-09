@@ -58,8 +58,10 @@ class TotalsTest extends \atk4\core\PHPUnit_AgileTestCase
             },
         ]);
 
+        // need to render to calculate totals
         $this->table->render();
 
+        // assert
         $this->assertEquals($this->table->totals, [
             [
                 'a'     => 6, // sum
