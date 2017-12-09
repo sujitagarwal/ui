@@ -47,13 +47,14 @@ class TotalsTest extends \atk4\core\PHPUnit_AgileTestCase
         // add another totals row and use custom function to calculate it
         $this->table->addTotals([
             'name'  => 'Custom totals',
-            'animal'=> function($total, $value, $key, $table) {
+            'animal'=> function ($total, $value, $key, $table) {
                 // longest animal name
-                $name = ($total===null ? $value : $total);
-                return (strlen($value) > strlen($name) ? $value : $name);
+                $name = ($total === null ? $value : $total);
+
+                return strlen($value) > strlen($name) ? $value : $name;
             },
-            'a'     => function($total, $value, $key, $table) {
-                return ($total===null ? 0 : $total) + $value * 2;
+            'a'     => function ($total, $value, $key, $table) {
+                return ($total === null ? 0 : $total) + $value * 2;
             },
         ]);
 
