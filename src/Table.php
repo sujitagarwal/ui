@@ -344,7 +344,7 @@ class Table extends Lister
                 $this->updateTotals();
             }
 
-            $this->renderRow($this->model);
+            $this->renderRow();
 
             $rows++;
         }
@@ -355,7 +355,6 @@ class Table extends Lister
         } elseif ($this->totals_plan) {
             $this->t_totals->setHTML('cells', $this->getTotalsRowHTML());
             $this->template->appendHTML('Foot', $this->t_totals->render());
-        } else {
         }
 
         return View::renderView();
@@ -385,10 +384,9 @@ class Table extends Lister
                 }
                 $field = $this->model->hasElement($name);
                 foreach ($columns as $column) {
-                    if (!method_exists($column, 'getHTMLTags')) {
-                        continue;
+                    if (method_exists($column, 'getHTMLTags')) {
+                        $html_tags = array_merge($column->getHTMLTags($this->model, $field), $html_tags);
                     }
-                    $html_tags = array_merge($column->getHTMLTags($this->model, $field), $html_tags);
                 }
             }
 
