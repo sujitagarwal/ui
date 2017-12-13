@@ -58,7 +58,6 @@ class TotalsTest extends \atk4\core\PHPUnit_AgileTestCase
         );
     }
 
-
     /*
         // add another totals row and use custom function to calculate it
         $this->table->addTotals([
@@ -82,7 +81,7 @@ class TotalsTest extends \atk4\core\PHPUnit_AgileTestCase
     }
     */
 
-    /**
+    /*
      * Test final totals.
      */
     /*
