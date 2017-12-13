@@ -60,7 +60,7 @@ class Grid extends View
      *
      * @var bool
      */
-    public $sortable = null;
+    public $sortable = true;
 
     /**
      * Component that actually renders data rows / coluns and possibly totals.
@@ -178,10 +178,6 @@ class Grid extends View
     public function setModel(\atk4\data\Model $model, $columns = null)
     {
         $this->model = $this->table->setModel($model, $columns);
-
-        if ($this->sortable === null) {
-            $this->sortable = true;
-        }
 
         if ($this->sortable) {
             $this->applySort();
