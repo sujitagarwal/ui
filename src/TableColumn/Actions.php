@@ -41,12 +41,19 @@ class Actions extends Generic
      * Adds a new button which will open a modal dialog and dynamically
      * load contents through $callback. Will pass a virtual page.
      */
-    public function addModal($button, $title, $callback)
+    public function addModal($button, $title, $callback, $owner = null)
     {
-        $modal = $this->owner->owner->add(['Modal', 'title'=>$title]);
-        $modal->set($callback);
+        if (!$owner) {
+            $modal = $this->owner->owner->add(['Modal', 'title'=>$title]);
+        } else {
+            $modal = $owner->add(['Modal', 'title'=>$title]);
+        }
 
-        return $this->addAction($button, $modal->show(['id'=>$this->owner->jsRow()->data('id')]));
+        $modal->set(function ($t) use ($callback) {
+            call_user_func($callback, $t, $this->app->stickyGet($this->name));
+        });
+
+        return $this->addAction($button, $modal->show([$this->name=>$this->owner->jsRow()->data('id')]));
     }
 
     public function getDataCellTemplate(\atk4\data\Field $f = null)

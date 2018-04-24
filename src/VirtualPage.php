@@ -13,11 +13,14 @@ namespace atk4\ui;
  */
 class VirtualPage extends View
 {
-    /** @var Callback */
+    /** @var callable */
     public $cb = null;
 
     /** @var callable Optional callback function of virtual page */
     public $fx = null;
+
+    /** @var string specify custom callback trigger for the URL (see Callback::$urlTrigger) */
+    public $urlTrigger = null;
 
     /** @var string UI container class */
     public $ui = 'container';
@@ -29,53 +32,8 @@ class VirtualPage extends View
     {
         parent::init();
 
-        $this->cb = $this->_add('CallbackLater');
-
-        $this->cb->set(function () {
-
-            // if virtual page callback is triggered
-            if ($type = $this->cb->triggered) {
-
-                // process callback
-                if ($this->fx) {
-                    call_user_func($this->fx, $this);
-                }
-
-                // special treatment for popup
-                if ($type == 'popup') {
-                    $this->app->html->template->set('title', $this->app->title);
-                    $this->app->html->template->setHTML('Content', parent::getHTML());
-                    $this->app->html->template->appendHTML('HEAD', $this->getJS());
-
-                    $this->app->terminate($this->app->html->template->render());
-                }
-
-                // render and terminate
-                if (isset($_GET['json'])) {
-                    $this->app->terminate($this->renderJSON());
-                }
-
-                // do not terminate if callback supplied (no cutting)
-                if ($type != 'callback') {
-                    $this->app->terminate($this->render());
-                }
-            }
-
-            // Remove all elements from inside the Content
-            foreach ($this->app->layout->elements as $key => $view) {
-                if ($view instanceof View && $view->region == 'Content') {
-                    unset($this->app->layout->elements[$key]);
-                }
-            }
-
-            $this->app->layout->template->setHTML('Content', parent::getHTML());
-            $this->app->layout->_js_actions = array_merge($this->app->layout->_js_actions, $this->_js_actions);
-
-            $this->app->html->template->setHTML('Content', $this->app->layout->getHTML());
-            $this->app->html->template->appendHTML('HEAD', $this->app->layout->getJS());
-
-            $this->app->terminate($this->app->html->template->render());
-        });
+        $this->cb = $this->_add(['Callback', 'urlTrigger'=>$this->urlTrigger ?: $this->name]);
+        $this->stickyGet($this->name);
     }
 
     /**
@@ -118,7 +76,8 @@ class VirtualPage extends View
     }
 
     /**
-     * Returns URL whichwill activate virtual page.
+     * Returns URL which you can load directly in the browser location, open in a new tab,
+     * new window or inside iframe. This URL will contain HTML for a new page.
      *
      * @param string $mode
      *
@@ -130,10 +89,68 @@ class VirtualPage extends View
     }
 
     /**
+     * Return URL that is designed to be loaded from inside JavaScript and contain JSON code.
+     * This is useful for dynamically loaded Modal, Tab or Loader.
+     *
+     * @param string $mode
+     *
+     * @return string
+     */
+    public function getJSURL($mode = 'callback')
+    {
+        return $this->cb->getJSURL($mode);
+    }
+
+    /**
      * VirtualPage is not rendered normally. It's invisible. Only when
      * it is triggered, it will exclusively output it's content.
      */
     public function getHTML()
     {
+        $this->cb->set(function () {
+
+            // if virtual page callback is triggered
+            if ($type = $this->cb->triggered()) {
+
+                // process callback
+                if ($this->fx) {
+                    call_user_func($this->fx, $this);
+                }
+
+                // special treatment for popup
+                if ($type == 'popup') {
+                    $this->app->html->template->set('title', $this->app->title);
+                    $this->app->html->template->setHTML('Content', parent::getHTML());
+                    $this->app->html->template->appendHTML('HEAD', $this->getJS());
+
+                    $this->app->terminate($this->app->html->template->render());
+                }
+
+                // render and terminate
+                if (isset($_GET['json'])) {
+                    $this->app->terminate($this->renderJSON());
+                }
+
+                // do not terminate if callback supplied (no cutting)
+                if ($type != 'callback') {
+                    $this->app->terminate($this->render());
+                }
+            }
+
+            // Remove all elements from inside the Content
+            foreach ($this->app->layout->elements as $key => $view) {
+                if ($view instanceof View && $view->region == 'Content') {
+                    unset($this->app->layout->elements[$key]);
+                }
+            }
+
+            $this->app->layout->template->setHTML('Content', parent::getHTML());
+            $this->app->layout->_js_actions = array_merge($this->app->layout->_js_actions, $this->_js_actions);
+
+            $this->app->html->template->setHTML('Content', $this->app->layout->getHTML());
+            $this->app->html->template->appendHTML('HEAD', $this->app->layout->getJS());
+
+            $this->app->terminate($this->app->html->template->render());
+        });
     }
 }

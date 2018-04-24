@@ -71,8 +71,12 @@ Paginator
 
 .. php:attr: $ipp
 
-Grid comes with a paginator already. You can disable it by setting $paginator property to false. You can use $ipp
-to specify different number of items per page::
+Grid comes with a paginator already. You can disable it by setting $paginator property to false. Alternatively you
+can provide seed for the paginator or even entire object::
+
+    $grid = $app->add(['Grid', 'paginator'=>['range'=>2]]);
+
+You can use $ipp property to specify different number of items per page::
 
     $grid->ipp = 10;
 
@@ -81,10 +85,35 @@ Actions
 
 .. php:attr: $actions
 
-.. php:method: addAction($label, $action)
+.. php:method: addAction($button, $action, $confirm = false)
 
 :php:class:`Table` supports use of :php:class:`TableColumn\Actions`, which allows to display button for each row.
 Calling addAction() provides a useful short-cut for creating column-based actions.
+
+$button can be either a string (for a button label) or something like `['icon'=>'book']`.
+
+If $confirm is set to true, then user will see a confirmation when he clicks on the action (yes/no).
+
+Calling this method multiple times will add button into same action column.
+
+See :php:meth:`TableColumn\Actions::addAction`
+
+.. php:method: addModalAction($button, $title, $callback)
+
+Similar to addAction, but when clicking a button, will open a modal dialog and execute $callback
+to populate a content::
+
+    $grid->addModalAction('Details', 'Additional Details', function($p, $id) use ($grid) {
+
+        // $id of the record which was clicked
+        // $grid->model->load($id);
+
+        $p->add('LoremIpsum');
+    });
+
+Calling this method multiple times will add button into same action column.
+
+See :php:meth:`TableColumn\Actions::addModal`
 
 Selection
 =========

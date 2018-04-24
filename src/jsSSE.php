@@ -6,19 +6,20 @@ namespace atk4\ui;
  * Implements a class that can be mapped into arbitrary JavaScript expression.
  */
 
-use atk4\core\InitializerTrait;
-
 class jsSSE extends jsCallback
 {
-    use InitializerTrait;
     // Allows us to fall-back to standard functionality of jsCallback if browser does not support SSE
     public $browserSupport = false;
     public $showLoader = false;
 
+    /**
+     * @var callable - custom function for outputting (instead of echo)
+     */
+    public $echoFunction = null;
+
     public function init()
     {
-        //parent::init();
-        $this->_initialized = true;
+        parent::init();
         if (@$_GET['event'] === 'sse') {
             $this->browserSupport = true;
             $this->initSse();
@@ -31,7 +32,7 @@ class jsSSE extends jsCallback
             throw new Exception(['Call-back must be part of a RenderTree']);
         }
 
-        $options = ['uri' => $this->getURL()];
+        $options = ['uri' => $this->getJSURL()];
         if ($this->showLoader) {
             $options['showLoader'] = $this->showLoader;
         }
@@ -47,10 +48,12 @@ class jsSSE extends jsCallback
         } // else ignore event
     }
 
-    public function terminate($ajaxec, $success = true)
+    public function terminate($ajaxec, $msg = null, $success = true)
     {
         if ($this->browserSupport) {
-            $this->sendEvent('js', json_encode(['success' => $success, 'message' => 'Success', 'atkjs' => $ajaxec]), 'jsAction');
+            if ($ajaxec) {
+                $this->sendEvent('js', json_encode(['success' => $success, 'message' => 'Success', 'atkjs' => $ajaxec]), 'jsAction');
+            }
 
             // no further output please
             $this->app->terminate();
@@ -77,7 +80,6 @@ class jsSSE extends jsCallback
      */
     public function flush()
     {
-        @ob_flush();
         @flush();
     }
 
@@ -88,7 +90,11 @@ class jsSSE extends jsCallback
      */
     private function output($content)
     {
-        echo $content;
+        if ($this->echoFunction) {
+            call_user_func($this->echoFunction, $content);
+        } else {
+            echo $content;
+        }
     }
 
     /**
@@ -105,6 +111,7 @@ class jsSSE extends jsCallback
             $this->output("event: {$name}\n");
         }
         $this->output($this->wrapData($data)."\n\n");
+        flush();
     }
 
     /**
@@ -122,20 +129,25 @@ class jsSSE extends jsCallback
     protected function initSse()
     {
         @set_time_limit(0); // Disable time limit
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
         // Prevent buffering
         if (function_exists('apache_setenv')) {
             @apache_setenv('no-gzip', 1);
         }
         @ini_set('zlib.output_compression', 0);
         @ini_set('implicit_flush', 1);
-        while (ob_get_level() != 0) {
-            ob_end_flush();
-        }
-        ob_implicit_flush(1);
+        //while (ob_get_level() != 0) {
+        //ob_end_flush();
+        //}
+        //ob_implicit_flush(1);
         //Somehow header has to be set right away.
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('Cache-Control: private');
+        header('Content-Encoding: none');
         header('Pragma: no-cache');
     }
 }

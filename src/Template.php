@@ -326,12 +326,16 @@ class Template implements \ArrayAccess
             return $this;
         }
 
+        if (is_object($value)) {
+            throw new Exception(['Value should not be an object', 'value'=>$value]);
+        }
+
         if ($encode) {
             $value = htmlspecialchars($value, ENT_NOQUOTES, 'UTF-8');
         }
 
         $this->getTagRefList($tag, $template);
-        foreach ($template as $key => &$ref) {
+        foreach ($template as &$ref) {
             $ref = [$value];
         }
 
@@ -392,16 +396,12 @@ class Template implements \ArrayAccess
      */
     public function append($tag, $value, $encode = true)
     {
-        if ($value instanceof URL) {
-            $value = $value->__toString();
-        }
-
         if ($encode) {
             $value = htmlspecialchars($value, ENT_NOQUOTES, 'UTF-8');
         }
 
         $this->getTagRefList($tag, $template);
-        foreach ($template as $key => &$ref) {
+        foreach ($template as &$ref) {
             $ref[] = $value;
         }
 
@@ -618,8 +618,22 @@ class Template implements \ArrayAccess
 
     // {{{ Template Parsing Engine
 
+    /**
+     * Used for adding unique tag alternatives. E.g. if your template has
+     * {$name}{$name}, then first would become 'name#1' and second 'name#2', but
+     * both would still respond to 'name' tag.
+     *
+     * @var array
+     */
     private $tag_cnt = [];
 
+    /**
+     * Register tags and return unique tag name.
+     *
+     * @param string $tag tag name
+     *
+     * @return string unique tag name
+     */
     protected function regTag($tag)
     {
         if (!isset($this->tag_cnt[$tag])) {
@@ -669,7 +683,7 @@ class Template implements \ArrayAccess
 
             $this->tags[$tag][] = &$template[$full_tag];
 
-            $rtag = $this->parseTemplateRecursive($input, $template[$full_tag]);
+            $this->parseTemplateRecursive($input, $template[$full_tag]);
 
             $chunk = @each($input);
             if ($chunk[1]) {

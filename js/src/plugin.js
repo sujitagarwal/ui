@@ -1,4 +1,14 @@
 import $ from 'jquery';
+import spinner from "./plugins/spinner";
+import serverEvent from "./plugins/serverEvent";
+import reloadView from "./plugins/reloadView";
+import ajaxec from "./plugins/ajaxec";
+import createModal from "./plugins/createModal";
+import notify from "./plugins/notify";
+import fileUpload from "./plugins/fileUpload";
+import jsSearch from "./plugins/jsSearch";
+import jsSortable from "./plugins/jsSortable";
+import conditionalForm from "./plugins/conditionalForm";
 
 /**
  * Generate a jQuery plugin
@@ -24,8 +34,7 @@ import $ from 'jquery';
  * import $ from 'jquery' will bind '$' var to jQuery var without '$' var conflicting with other library
  * in final webpack output.
  */
-
-export default function plugin(name, className, shortHand = false) {
+function plugin(name, className, shortHand = false) {
         // Add atk namespace to jQuery global space.
         if(!$.atk){
             $.atk = new Object();
@@ -63,3 +72,27 @@ export default function plugin(name, className, shortHand = false) {
         // - No conflict
         $.fn[pluginName].noConflict = () => $.fn[pluginName] = old;
 }
+
+/**
+ * Create all jQuery plugins need for atk.
+ */
+function createAtkplugins() {
+  const atkJqPlugins = [
+    {name: 'Spinner', plugin: spinner, sh: false},
+    {name: 'ReloadView', plugin: reloadView, sh: false},
+    {name: 'Ajaxec', plugin: ajaxec, sh: false},
+    {name: 'CreateModal', plugin: createModal, sh: false},
+    {name: 'Notify', plugin: notify,sh: true},
+    {name: 'ServerEvent', plugin: serverEvent, sh: true},
+    {name: 'FileUpload', plugin: fileUpload, sh: false},
+    {name: 'JsSearch', plugin: jsSearch, sh: false},
+    {name: 'JsSortable', plugin: jsSortable, sh: false},
+    {name: 'ConditionalForm', plugin: conditionalForm, sh: true},
+  ];
+
+  atkJqPlugins.forEach((atkJqPlugin) => {
+    plugin(atkJqPlugin.name, atkJqPlugin.plugin, atkJqPlugin.sh);
+  });
+}
+
+export {plugin, createAtkplugins};

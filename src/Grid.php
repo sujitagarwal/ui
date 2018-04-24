@@ -19,7 +19,11 @@ class Grid extends View
     /**
      * Calling addQuickSearch will create a form with a field inside $menu to perform quick searches.
      *
-     * @var FormField\Generic
+     * If you pass this property as array of field names while creating Grid, then when you will call
+     * setModel() QuickSearch object will be created automatically and these model fields will be used
+     * for filtering.
+     *
+     * @var array|FormField\Generic
      */
     public $quickSearch = null;
 
@@ -69,23 +73,30 @@ class Grid extends View
      */
     public $table = null;
 
+    /**
+     * The container for table and paginator.
+     *
+     * @var View
+     */
+    public $container = null;
+
     public $defaultTemplate = 'grid.html';
 
     public function init()
     {
         parent::init();
 
-        if (is_null($this->menu)) {
-            $this->menu = $this->add(['Menu', 'activate_on_click' => false], 'Menu');
+        $this->container = $this->add(['View', 'ui'=>'', 'template' => new Template('<div id="{$_id}"><div class="ui table atk-overflow-auto">{$Table}{$Content}</div>{$Paginator}</div>')]);
+
+        if ($this->menu !== false) {
+            $this->menu = $this->add($this->factory(['Menu', 'activate_on_click' => false], $this->menu), 'Menu');
         }
 
-        if (is_null($this->table)) {
-            $this->table = $this->add(['Table', 'very compact striped single line', 'reload' => $this], 'Table');
-        }
+        $this->table = $this->container->add($this->factory(['Table', 'very compact striped single line', 'reload' => $this], $this->table), 'Table');
 
-        if (is_null($this->paginator)) {
-            $seg = $this->add(['View'], 'Paginator')->addStyle('text-align', 'center');
-            $this->paginator = $seg->add(['Paginator', 'reload' => $this]);
+        if ($this->paginator !== false) {
+            $seg = $this->container->add(['View'], 'Paginator')->addStyle('text-align', 'center');
+            $this->paginator = $seg->add($this->factory(['Paginator', 'reload' => $this], $this->paginator));
         }
     }
 
@@ -97,23 +108,44 @@ class Grid extends View
      * @param array|string|object|null $columnDecorator
      * @param array|string|object|null $field
      *
-     * @return Column\Generic
+     * @return TableColumn\Generic
      */
     public function addColumn($name, $columnDecorator = null, $field = null)
     {
         return $this->table->addColumn($name, $columnDecorator, $field);
     }
 
+    /**
+     * Add additional decorator for existing column.
+     *
+     * @param string                    $name      Column name
+     * @param TableColumn\Generic|array $decorator Seed or object of the decorator
+     */
     public function addDecorator($name, $decorator)
     {
         return $this->table->addDecorator($name, $decorator);
     }
 
+    /**
+     * Add a new buton to the Grid Menu with a given text.
+     *
+     * WARNING: needs to be reviewed!
+     *
+     * @param mixed $text
+     */
     public function addButton($text)
     {
         return $this->menu->addItem()->add(new Button($text));
     }
 
+    /**
+     * Add Search input field using js action.
+     *
+     * @param array $fields
+     *
+     * @throws Exception
+     * @throws \atk4\data\Exception
+     */
     public function addQuickSearch($fields = [])
     {
         if (!$fields) {
@@ -124,17 +156,13 @@ class Grid extends View
             throw new Exception(['Unable to add QuickSearch without Menu']);
         }
 
-        $form = $this->menu
+        $view = $this->menu
             ->addMenuRight()->addItem()->setElement('div')
-            ->add('View')->setElement('form');
+            ->add('View');
 
-        $this->quickSearch = $form->add(new \atk4\ui\FormField\Input(['placeholder' => 'Search', 'short_name' => $this->name.'_q', 'icon' => 'search']))
-            ->addClass('transparent');
+        $this->quickSearch = $view->add(['jsSearch', 'reload' => $this->container]);
 
-        if (isset($_GET[$this->name.'_q'])) {
-            $q = $_GET[$this->name.'_q'];
-            $this->quickSearch->set($q);
-
+        if ($q = $this->stickyGet('_q')) {
             $cond = [];
             foreach ($fields as $field) {
                 $cond[] = [$field, 'like', '%'.$q.'%'];
@@ -143,13 +171,38 @@ class Grid extends View
         }
     }
 
-    public function addAction($label, $action, $confirm = false)
+    /**
+     * Adds a new button into the action column on the right. For CRUD this
+     * column will already contain "delete" and "edit" buttons.
+     *
+     * @param string|array|View         $button  Label text, object or seed for the Button
+     * @param jsExpressionable|callable $action  JavaScript action or callback
+     * @param bool|string               $confirm Should we display confirmation "Are you sure?"
+     */
+    public function addAction($button, $action, $confirm = false)
     {
         if (!$this->actions) {
             $this->actions = $this->table->addColumn(null, 'Actions');
         }
 
-        return $this->actions->addAction($label, $action, $confirm);
+        return $this->actions->addAction($button, $action, $confirm);
+    }
+
+    /**
+     * Similar to addAction but when button is clicked, modal is displayed
+     * with the $title and $callback is executed through VirtualPage.
+     *
+     * @param string|array|View $button
+     * @param string            $title
+     * @param callable          $callback function($page){ . .}
+     */
+    public function addModalAction($button, $title, $callback)
+    {
+        if (!$this->actions) {
+            $this->actions = $this->table->addColumn(null, 'Actions');
+        }
+
+        return $this->actions->addModal($button, $title, $callback, $this);
     }
 
     /**
@@ -157,7 +210,8 @@ class Grid extends View
      */
     public function applySort()
     {
-        $sortby = $this->app->stickyGET($this->name.'_sort', null);
+        //$sortby = $this->app->stickyGET($this->name.'_sort', null);
+        $sortby = $this->stickyGet($this->name.'_sort');
         $desc = false;
         if ($sortby && $sortby[0] == '-') {
             $desc = true;
@@ -166,26 +220,51 @@ class Grid extends View
 
         $this->table->sortable = true;
 
-        if ($sortby && isset($this->table->columns[$sortby]) && $this->model->hasElement($sortby) instanceof \atk4\data\Field) {
+        if (
+            $sortby
+            && isset($this->table->columns[$sortby])
+            && $this->model->hasElement($sortby) instanceof \atk4\data\Field
+        ) {
             $this->model->setOrder($sortby, $desc);
             $this->table->sort_by = $sortby;
             $this->table->sort_order = $desc ? 'descending' : 'ascending';
         }
 
-        $this->table->on('click', 'thead>tr>th', new jsReload($this, [$this->name.'_sort' => (new jQuery())->data('column')]));
+        $this->table->on(
+            'click',
+            'thead>tr>th',
+            new jsReload($this, [$this->name.'_sort' => (new jQuery())->data('column')])
+        );
     }
 
     public function setModel(\atk4\data\Model $model, $columns = null)
     {
         $this->model = $this->table->setModel($model, $columns);
 
+        if ($this->sortable === null) {
+            $this->sortable = true;
+        }
+
         if ($this->sortable) {
             $this->applySort();
+        }
+        if ($this->quickSearch && is_array($this->quickSearch)) {
+            $this->addQuickSearch($this->quickSearch);
+        }
+
+        if ($this->quickSearch && is_array($this->quickSearch)) {
+            $this->addQuickSearch($this->quickSearch);
         }
 
         return $this->model;
     }
 
+    /**
+     * Makes rows of this grid selectable by creating new column on the left with
+     * checkboxes.
+     *
+     * @return TableColumn\CheckBox
+     */
     public function addSelection()
     {
         $this->selection = $this->table->addColumn(null, 'CheckBox');
@@ -197,15 +276,34 @@ class Grid extends View
         return $this->selection;
     }
 
+    /**
+     * Add column with drag handler on each row.
+     * Drag handler allow to reorder table via drag n drop.
+     */
+    public function addDragHandler()
+    {
+        $handler = $this->table->addColumn(null, 'DragHandler');
+        // Move last column to the beginning in table column array.
+        array_unshift($this->table->columns, array_pop($this->table->columns));
+
+        return $handler;
+    }
+
     public function recursiveRender()
     {
         // bind with paginator
         if ($this->paginator) {
-            $this->paginator->reload = $this;
+            $this->paginator->reload = $this->container;
 
             $this->paginator->setTotal(ceil($this->model->action('count')->getOne() / $this->ipp));
 
             $this->model->setLimit($this->ipp, ($this->paginator->page - 1) * $this->ipp);
+        }
+
+        if ($this->quickSearch instanceof jsSearch) {
+            if ($sortby = $this->stickyGet($this->name.'_sort')) {
+                $this->container->js(true, $this->quickSearch->js()->atkJsSearch('setSortArgs', [$this->name.'_sort', $sortby]));
+            }
         }
 
         return parent::recursiveRender();

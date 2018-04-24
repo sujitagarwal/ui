@@ -27,6 +27,16 @@ class FeatureContext extends RawMinkContext implements Context
     }
 
     /**
+     * @When I use form with button :arg1
+     */
+    public function iUseFormWithButton($arg1)
+    {
+        $button = $this->getSession()->getPage()->find('xpath', '//button[text()="'.$arg1.'"]');
+        $this->button_id = $button->getAttribute('id');
+        $button->click();
+    }
+
+    /**
      * @When I press button :arg1
      */
     public function iPressButton($arg1)
@@ -84,7 +94,7 @@ class FeatureContext extends RawMinkContext implements Context
     public function modalOpensWithText($arg1)
     {
         $modal = $this->getSession()->getPage()->find('xpath', '//div[text()="'.$arg1.'"]');
-        if ($modal->getAttribute('class') != 'ui modal scrolling') {
+        if ($modal->getAttribute('class') != 'ui modal visible active') {
             throw new \Exception('No such modal');
         }
     }
@@ -94,7 +104,7 @@ class FeatureContext extends RawMinkContext implements Context
      */
     public function progressBarShouldBeGoAllTheWay()
     {
-        $element = $this->getSession()->getPage()->find('css', '.bar');
+        /*$element =*/ $this->getSession()->getPage()->find('css', '.bar');
         //TODO: zombiejs does not support sse :(
         //var_dump($element->getOuterHtml());
     }

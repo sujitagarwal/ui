@@ -7,6 +7,8 @@ namespace atk4\ui;
  */
 class jsExpression implements jsExpressionable
 {
+    use \atk4\core\DIContainerTrait;
+
     /**
      * @var string
      */
@@ -139,6 +141,10 @@ class jsExpression implements jsExpressionable
 
     /**
      * TODO: Escapes the string, but needs a reference to where this code has been from.
+     *
+     * @internal
+     *
+     * @param string $str
      */
     public function _safe_js_string($str)
     {

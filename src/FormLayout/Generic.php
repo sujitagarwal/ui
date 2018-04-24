@@ -82,7 +82,7 @@ class Generic extends View
             }
 
             if (is_string($decorator)) {
-                $decorator = $this->form->decoratorFactory($field, null, ['caption' => $decorator]);
+                $decorator = $this->form->decoratorFactory($field, ['caption' => $decorator]);
             } elseif (is_array($decorator)) {
                 $decorator = $this->form->decoratorFactory($field, $decorator);
             } elseif (!$decorator) {
@@ -134,6 +134,19 @@ class Generic extends View
         }
 
         return $model;
+    }
+
+    /**
+     * Return Field decorator associated with
+     * the form's field.
+     */
+    public function getField($name)
+    {
+        if (empty($this->form)) {
+            throw new Exception(['Incorrect value for $form', 'form' => $this->form]);
+        }
+
+        return $this->form->getField($name);
     }
 
     /**
@@ -229,8 +242,8 @@ class Generic extends View
                 continue;
             }
 
-            // Anything but fields gets inserted directly
-            if (!$el instanceof \atk4\ui\FormField\Generic) {
+            // Anything but fields or explicitly defined fields gets inserted directly
+            if (!$el instanceof \atk4\ui\FormField\Generic || !$el->layoutWrap) {
                 $this->template->appendHTML('Content', $el->getHTML());
                 continue;
             }
@@ -270,6 +283,18 @@ class Generic extends View
 
             if (isset($el->width)) {
                 $template->append('field_class', $el->width.' wide ');
+            }
+
+            if ($el->hint && $template->hasTag('Hint')) {
+                $hint = new \atk4\ui\Label([null, 'pointing', 'id'=>$el->id.'_hint']);
+                if (is_object($el->hint) || is_array($el->hint)) {
+                    $hint->add($el->hint);
+                } else {
+                    $hint->set($el->hint);
+                }
+                $template->setHTML('Hint', $hint->getHTML());
+            } elseif ($template->hasTag('Hint')) {
+                $template->del('Hint');
             }
 
             $this->template->appendHTML('Content', $template->render());

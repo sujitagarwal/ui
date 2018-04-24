@@ -39,7 +39,7 @@ $g->addField('surname');
 $g->addField('gender', ['DropDown', 'values' => ['Female', 'Male']]);
 
 $tab->add(['Header', 'Comparing Field type vs Decorator class']);
-$form = $app->add('Form');
+$form = $tab->add('Form');
 $form->addField('date1', null, ['type' => 'date']);
 $form->addField('date2', ['Calendar', 'type' => 'date']);
 
@@ -108,8 +108,19 @@ $tab->add(['Header', 'Form shows Agile exceptions', 'size' => 2]);
 $form = $tab->add('Form');
 $form->addField('email');
 $form->onSubmit(function ($form) {
-    $form->factory([]);
+    throw new \atk4\core\Exception(['testing', 'arg1'=>'val1']);
+    return 'somehow it did not crash';
 });
+
+$form->add(['Button', 'Modal Test', 'secondary'])->on('click', $form->add('Modal')
+                                                                    ->set(function ($p) {
+                                                                        $form = $p->add('Form');
+                                                                        $form->addField('email');
+                                                                        $form->onSubmit(function ($form) {
+                                                                            throw new \atk4\core\Exception(['testing', 'arg1'=>'val1']);
+                                                                            return 'somehow it did not crash';
+                                                                        });
+                                                                    })->show());
 
 /////////////////////////////////////////////////////////////////////
 $tab = $tabs->addTab('Complex Examples');
@@ -178,4 +189,4 @@ $f->onSubmit(function ($f) {
     return $errors ?: $f->success('No more errors', 'so we have saved everything into the database');
 });
 
-$tabs->addTab('Form Database', ['form2.php', 'layout' => 'Centered']);
+$tabs->addTabURL('Form Database', ['form2', 'layout' => 'Centered']);

@@ -29,7 +29,7 @@ class View implements jsExpressionable
      * When you call render() this will be populated with JavaScript
      * chains.
      *
-     * @private! but must remain public so that child views could interact
+     * @internal must remain public so that child views could interact
      * with parent's $js.
      *
      * @var array
@@ -49,7 +49,7 @@ class View implements jsExpressionable
      *
      * @var string
      */
-    public $region = 'Content';
+    public $region = null; //'Content';
 
     /**
      * Enables UI keyword for Semantic UI indicating that this is a
@@ -129,10 +129,21 @@ class View implements jsExpressionable
      */
     public $element = null;
 
-    // @var array
+    /**
+     * If add() method is called, but current view is not part of render tree yet,
+     * then arguments to add() are simply stored in this array. When the view is
+     * initialized by calling init() or adding into App or another initialized View,
+     * then add() will be re-invoked with the contents of this array.
+     *
+     * @var array
+     */
     protected $_add_later = [];
 
-    // will be set to true after render
+    /**
+     * will be set to true after rendered. This is so that we don't render view twice.
+     *
+     * @var bool
+     */
     protected $_rendered = false;
 
     // }}}
@@ -197,39 +208,21 @@ class View implements jsExpressionable
     /**
      * Sets source of the View.
      *
-     * @param array $data
+     * @param array $data   Array of data
+     * @param array $fields Limit model to particular fields
      *
      * @return \atk4\data\Model
      */
-    public function setSource(array $data)
+    public function setSource(array $data, $fields = null)
     {
-        $goodData = [];
-
-        foreach ($data as $key => $value) {
-            if (!is_array($value)) {
-                $value = ['name' => $value];
-            }
-
-            if (!isset($value['id'])) {
-                $value['id'] = $key;
-            }
-            $goodData[] = $value;
-        }
-        $goodData = ['data' => $goodData];
-
-        $model = new \atk4\data\Model(
-            new \atk4\data\Persistence_Array($goodData), 'data'
-        );
-        $model->addField('name');
-
-        return $this->setModel($model);
+        $this->setModel(new \atk4\data\Model(new \atk4\data\Persistence_Static($data)), $fields);
     }
 
     /**
      * TODO: move into trait because it's used so often.
      *
-     * @param $key
-     * @param $val
+     * @param string $key
+     * @param mixed  $val
      *
      * @throws Exception
      */
@@ -275,7 +268,7 @@ class View implements jsExpressionable
     /**
      * Makes view into a "<a>" element with a link.
      *
-     * @param string $url
+     * @param string|array $url
      *
      * @return $this
      */
@@ -287,7 +280,7 @@ class View implements jsExpressionable
 
             return $this;
         }
-        $this->setAttr('href', $this->app->url($url));
+        $this->setAttr('href', $this->url($url));
 
         return $this;
     }
@@ -320,9 +313,23 @@ class View implements jsExpressionable
             $this->initDefaultApp();
         }
 
-        // set up template
-        if (is_string($this->defaultTemplate) && is_null($this->template)) {
-            $this->template = $this->app->loadTemplate($this->defaultTemplate);
+        if ($this->region && !$this->template && !$this->defaultTemplate && $this->owner && $this->owner->template) {
+            $this->template = $this->owner->template->cloneRegion($this->region);
+
+            $this->owner->template->del($this->region);
+        } else {
+            // set up template
+            if (is_string($this->defaultTemplate) && is_null($this->template)) {
+                $this->template = $this->app->loadTemplate($this->defaultTemplate);
+            }
+
+            if (!$this->region) {
+                $this->region = 'Content';
+            }
+        }
+
+        if ($this->template && !isset($this->template->app) && isset($this->app)) {
+            $this->template->app = $this->app;
         }
 
         // add default objects
@@ -344,66 +351,46 @@ class View implements jsExpressionable
     }
 
     /**
-     * In addition to adding a child object, set up it's template
+     * In addition to adding a child object, sets up it's template
      * and associate it's output with the region in our template.
      *
-     * @param View|string  $object New object to add
-     * @param string|array $region (or array for full set of defaults)
+     * @param mixed  $seed   New object to add
+     * @param string $region
      *
      * @throws Exception
      *
      * @return View
      */
-    public function add($seed, $defaults = null)
+    public function add($seed, $region = null)
     {
+        if ($this->_rendered) {
+            throw new Exception('You cannot add anything into the view after it was rendered');
+        }
         if (!$this->app) {
-            $this->_add_later[] = [$seed, $defaults];
+            $this->_add_later[] = [$seed, $region];
 
             return $seed;
         }
 
-        if (is_array($defaults)) {
-            throw new Exception('Second argument to add must be region or null!');
-        }
-
-        $region = null;
-        if (is_array($defaults) && isset($defaults['region'])) {
-            $region = $defaults['region'];
-            unset($defaults['region']);
-        } elseif (is_array($defaults) && isset($defaults[0])) {
-            $region = $defaults[0];
-            unset($defaults[0]);
-        } elseif (is_string($defaults)) {
-            $region = $defaults;
-            $defaults = null;
+        if (is_array($region)) {
+            $args = $region;
+            if (isset($args['region'])) {
+                $region = ['region'=>$args['region']];
+                unset($args['region']);
+            }
+        } elseif ($region) {
+            $args = null;
+            $region = ['region'=>$region];
+        } else {
+            $args = null;
+            $region = null;
         }
 
         // Create object first
-        $object = $this->factory($this->mergeSeeds($seed, ['View']), $defaults);
-
-        if ($object instanceof self && $region) {
-            $object->region = $region;
-        }
+        $object = $this->factory($this->mergeSeeds($seed, ['View']), $region);
 
         // Will call init() of the object
-        $object = $this->_add($object);
-
-        if (!$object instanceof self) {
-            return $object;
-        }
-
-        // We are adding a new view, so do a bit more
-        if (!$object->template && $object->region && $this->template) {
-            $object->template = $this->template->cloneRegion($object->region);
-        }
-
-        if ($this->template && $object->region) {
-            if (is_string($this->template)) {
-                throw new Exception(['Property $template should contain object, not a string', 'template' => $this->template]);
-            }
-
-            $this->template->del($object->region);
-        }
+        $object = $this->_add($object, $args);
 
         return $object;
     }
@@ -413,7 +400,7 @@ class View implements jsExpressionable
     // {{{ Manipulating classes and view properties
 
     /**
-     * Override this method without compatibility with parrent, if you wish
+     * Override this method without compatibility with parent, if you wish
      * to set your own things your own way for your view.
      *
      * @param string|array $arg1
@@ -441,7 +428,7 @@ class View implements jsExpressionable
             ]);
         }
 
-        if (is_string($arg1)) {
+        if (is_scalar($arg1)) {
             $this->content = $arg1;
 
             return $this;
@@ -537,6 +524,11 @@ class View implements jsExpressionable
     }
 
     /**
+     * @param string|array $property CSS Property or hash
+     * @param string       $style    CSS Style definition
+     *
+     * @return $this
+     *
      * @see setStyle()
      */
     public function addStyle($property, $style = null)
@@ -583,7 +575,7 @@ class View implements jsExpressionable
     /**
      * Remove attribute.
      *
-     * @param string|array $attr Attribute name or hash
+     * @param string|array $property Attribute name or hash
      *
      * @return $this
      */
@@ -757,6 +749,10 @@ class View implements jsExpressionable
      */
     public function getHTML()
     {
+        if (isset($_GET['__atk_reload']) && $_GET['__atk_reload'] == $this->name) {
+            $this->app->terminate($this->renderJSON());
+        }
+
         $this->renderAll();
 
         return $this->template->render();
@@ -809,8 +805,9 @@ class View implements jsExpressionable
      *
      * @link http://agile-ui.readthedocs.io/en/latest/js.html
      *
-     * @param string|bool|null $when   Event when chain will be executed
-     * @param jsExpression     $action JavaScript action
+     * @param string|bool|null $when     Event when chain will be executed
+     * @param jsExpression     $action   JavaScript action
+     * @param string           $selector If you wish to override jQuery($selector)
      *
      * @return jQuery
      */
@@ -844,6 +841,18 @@ class View implements jsExpressionable
         $this->_js_actions[$when][] = $action;
 
         return $chain;
+    }
+
+    /**
+     * Returns JS for reloading View.
+     *
+     * @param array $args
+     *
+     * @return \atk4\ui\jsReload
+     */
+    public function jsReload($args = [])
+    {
+        return new jsReload($this, $args);
     }
 
     /**
@@ -945,7 +954,7 @@ class View implements jsExpressionable
             }
 
             $actions[] = $cb;
-            //$thisAction->api(['on'=>'now', 'url'=>$cb->getURL(), 'urlData'=>$urlData, 'obj'=>new jsExpression('this')]);
+        //$thisAction->api(['on'=>'now', 'url'=>$cb->getJSURL(), 'urlData'=>$urlData, 'obj'=>new jsExpression('this')]);
         } elseif ($action) {
             // otherwise include
             $actions[] = $action;
@@ -1020,6 +1029,100 @@ class View implements jsExpressionable
         return "<script>\n".
             (new jQuery($ready))->jsRender().
             '</script>';
+    }
+
+    // }}}
+
+    // {{{ Sticky URLs
+
+    /** @var array stickyGet arguments */
+    public $stickyArgs = [];
+
+    /** @var array Cached stickyGet arguments */
+    public $_stickyArgsCached = null;
+
+    /**
+     * Build an URL which this view can use for js call-backs. It should
+     * be guaranteed that requesting returned URL would at some point call
+     * $this->init().
+     *
+     * @param array $page
+     *
+     * @return string
+     */
+    public function jsURL($page = [])
+    {
+        return $this->app->jsURL($page, false, array_merge($this->_getStickyArgs($this->name), $this->stickyArgs));
+    }
+
+    /**
+     * Build an URL which this view can use for call-backs. It should
+     * be guaranteed that requesting returned URL would at some point call
+     * $this->init().
+     *
+     * @param string|array $page URL as string or array with page name as first element and other GET arguments
+     *
+     * @return string
+     */
+    public function url($page = [])
+    {
+        return $this->app->url($page, false, array_merge($this->_getStickyArgs($this->name), $this->stickyArgs));
+    }
+
+    /**
+     * Needed for tracking which view in a render tree called url().
+     *
+     * @internal
+     *
+     * @var [type]
+     */
+    public $_triggerBy = null;
+
+    /**
+     * Get sticky arguments defined by the view and parents (including API).
+     *
+     * @param string $triggerBy If exception occurs, will know which view called url()
+     *
+     * @return array
+     */
+    public function _getStickyArgs($triggerBy)
+    {
+        $this->_triggerBy = $triggerBy;
+        if ($this->owner && $this->owner instanceof self) {
+            $this->_stickyArgsCached = array_merge($this->owner->_getStickyArgs($triggerBy), $this->stickyArgs);
+        } else {
+            $this->_stickyArgsCached = [];
+        }
+
+        return $this->_stickyArgsCached;
+    }
+
+    /**
+     * Mark GET argument as sticky. Calling url() on this view or any
+     * sub-views will embedd the value of this GET argument.
+     *
+     * If GET argument is empty or false, it won't make into URL.
+     *
+     * If GET argument is not presently set you can specify a 2nd argument
+     * to forge-set the GET argument for current view and it's sub-views.
+     *
+     * @param string $name
+     * @param string $newValue
+     *
+     * @return string
+     */
+    public function stickyGet($name, $newValue = null)
+    {
+        if ($newValue) {
+            $this->stickyArgs[$name] = $newValue;
+
+            return $newValue;
+        }
+        if (isset($_GET[$name])) {
+            $this->stickyArgs[$name] = $_GET[$name];
+
+            return $_GET[$name];
+        }
     }
 
     // }}}

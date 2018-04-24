@@ -222,6 +222,41 @@ address same model scope.
 
 If you need to generate URL that respects stickyGet arguments, use :php:meth:`App::url()`.
 
+See also :php:meth:`View::stickyGet`
+
+Redirects
+---------
+
+.. php:method:: redirect(page)
+.. php:method:: jsRedirect(page)
+
+App implements two handy methods for handling redirects between pages. The main purpose for those is
+to provide a simple way to redirect for users who are not familiar with JavaScript and HTTP headers
+so well.  Example::
+
+    if (!isset($_GET['age'])) {
+        $app->redirect(['age'=>18]);
+    }
+
+    $app->add(['Button', 'Increase age'])
+        ->on('click', $app->jsRedirect(['age'=>$_GET['age']+1]));
+
+No much magic in these methods.
+
+Database Connection
+-------------------
+
+.. php:method:: dbConnect(dsn, $user = null, $password = null, $args = [])
+
+(Arguments are identical to `Persistence::connect <http://agile-data.readthedocs.io/en/develop/persistence.html?highlight=connect#associating-with-persistence>`_.
+
+This method should be used instead of manually calling Persistence::connect. This will
+properly propogate Persistence's "api" property to $this, so that you can refrence::
+
+    $this->app->...
+
+inside your model code.
+
 Execution Termination
 ---------------------
 
@@ -264,6 +299,13 @@ through :ref:`page_manager`.
 The url() method will automatically append values of arguments mentioned to `stickyGet()`,
 but if you need URL to drop any sticky value, specify value explicitly as `false`.
 
+.. php:method:: jsURL(callback_page)
+
+Use jsURL for creating callback, which return non-HTML output. This may be routed differently
+by a host framework (https://github.com/atk4/ui/issues/369).
+
+
+
 Includes
 --------
 
@@ -280,6 +322,10 @@ and the following hooks are available:
 
  - beforeRender
  - beforeOutput
+
+
+.. note:: beforeOutput and beforeRender are not executed if $app->terminate() is called, even
+    if parameter is passed.
 
 
 Application and Layout

@@ -1,7 +1,3 @@
-
-
-
-
 .. php:namespace: atk4\\ui
 
 .. _js:
@@ -134,7 +130,7 @@ Including JS/CSS
 ----------------
 
 Sometimes you need to include an additional .js or .css file for your code
-to work. See :php:meth:`App::includeJS()` and :php:meth:`App::includeCSS()`
+to work. See :php:meth:`App::requireJS()` and :php:meth:`App::requireCSS()`
 for details.
 
 
@@ -585,8 +581,9 @@ The most basic approach you could probably figure out already::
 
 However, it would be nice if you could communicate to the user the progress of your process:
 
+.. _sse:
 
-Server Side Event (jsSSE)
+Server Sent Event (jsSSE)
 -------------------------
 
 .. php:class:: jsSSE
@@ -617,4 +614,6 @@ execution::
         return $button->js()->text('Success')->addClass('disabled');
 
     });
+
+The jsSSE component plays a crucial role in some high-level components such as :php:class:`Console` and :php:class:`ProgressBar`.
 

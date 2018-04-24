@@ -25,14 +25,11 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
 
     /**
      * List of fields currently registered with this form.
+     *
+     * @var array Array of FormField objects
      */
     public $fields = [];
 
-    /**
-     * Disables form contents.
-     *
-     * {@inheritdoc}
-     */
     public $content = false;
 
     /**
@@ -52,6 +49,38 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
      * @var string
      */
     public $successTemplate = 'form-success.html';
+
+    /**
+     * Collection of field's conditions for displaying a target field on the form.
+     *
+     * Specifying a condition for showing a target field required the name of the target field
+     * and the rules to show that target field. Each rule contains a source field's name and a condition for the
+     * source field. When each rule is true, then the target field is show on the form.
+     *
+     *  Combine multiple rules for showing a field.
+     *   ex: ['target' => ['source1' => 'notEmpty', 'source2' => 'notEmpty']]
+     *   Show 'target' if 'source1' is not empty AND 'source2' is notEmpty.
+     *
+     *  Combine multiple condition to the same source field.
+     *   ex: ['target' => ['source1' => ['notEmpty','number']]
+     *   Show 'target' if 'source1 is notEmpty AND is a number.
+     *
+     *  Combine multiple arrays of rules will OR the rules for the target field.
+     *  ex: ['target' => [['source1' => ['notEmpty', 'number']], ['source1' => 'isExactly[5]']
+     *  Show "target' if 'source1' is not empty AND is a number
+     *      OR
+     *  Show 'target' if 'source1' is exactly 5.
+     *
+     * @var array
+     */
+    public $fieldsDisplayRules = [];
+
+    /**
+     * Default selector for jsConditionalForm.
+     *
+     * @var string
+     */
+    public $fieldDisplaySelector = '.field';
 
     // }}}
 
@@ -97,7 +126,39 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
 
         // Layout needs to have a save button
         $this->buttonSave = $this->layout->addButton(['Save', 'primary']);
+        $this->buttonSave->setAttr('tabindex', 0);
         $this->buttonSave->on('click', $this->js()->form('submit'));
+        $this->buttonSave->on('keypress', new jsExpression('if (event.keyCode === 13){$([name]).form("submit");}', ['name' => '#'.$this->name]));
+    }
+
+    /**
+     * Setter for field display rules.
+     *
+     * @param array $rules
+     *
+     * @return $this
+     */
+    public function setFieldsDisplayRules($rules = [])
+    {
+        $this->fieldsDisplayRules = $rules;
+
+        return $this;
+    }
+
+    /**
+     * Set display rule for a group collection.
+     *
+     * @param array  $rules
+     * @param string $selector
+     *
+     * @return $this
+     */
+    public function setGroupDisplayRules($rules = [], $selector = '.atk-form-group')
+    {
+        $this->fieldsDisplayRules = $rules;
+        $this->fieldDisplaySelector = $selector;
+
+        return $this;
     }
 
     /**
@@ -140,6 +201,8 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
     /**
      * Return Field decorator associated with
      * the field.
+     *
+     * @param string $name Name of the field
      */
     public function getField($name)
     {
@@ -277,8 +340,8 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
      * 3. $f->type is converted into seed and evaluated
      * 4. lastly, falling back to Line, DropDown (based on $reference and $enum)
      *
-     * @param \atk4\data\Field $f        Data model field
-     * @param array            $defaults Defaults to pass to factory() when decorator is initialized
+     * @param \atk4\data\Field $f    Data model field
+     * @param array            $seed Defaults to pass to factory() when decorator is initialized
      *
      * @return FormField\Generic
      */
@@ -288,12 +351,18 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
             throw new Exception(['Argument 1 for decoratorFactory must be \atk4\data\Field or null', 'f' => $f]);
         }
 
-        $fallback_seed = 'Line';
+        $fallback_seed = ['Line'];
 
         if ($f->enum) {
             $fallback_seed = ['DropDown', 'values' => array_combine($f->enum, $f->enum)];
+        } elseif ($f->values) {
+            $fallback_seed = ['DropDown', 'values' => $f->values];
         } elseif (isset($f->reference)) {
             $fallback_seed = ['DropDown', 'model' => $f->reference->refModel()];
+        }
+
+        if (isset($f->ui['hint'])) {
+            $fallback_seed['hint'] = $f->ui['hint'];
         }
 
         $seed = $this->mergeSeeds(
@@ -314,6 +383,8 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
 
     /**
      * Provides decorator seeds for most common types.
+     *
+     * @var array Describes how factory converts type to decorator seed
      */
     protected $typeToDecorator = [
         'boolean'  => 'CheckBox',
@@ -334,7 +405,6 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
         $post = $_POST;
 
         $this->hook('loadPOST', [&$post]);
-        $data = [];
         $errors = [];
 
         foreach ($this->fields as $key => $field) {
@@ -355,6 +425,9 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
     public function renderView()
     {
         $this->ajaxSubmit();
+        if (!empty($this->fieldsDisplayRules)) {
+            $this->js(true, new jsConditionalForm($this, $this->fieldsDisplayRules, $this->fieldDisplaySelector));
+        }
 
         return parent::renderView();
     }
@@ -364,22 +437,21 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
      */
     public function ajaxSubmit()
     {
-        $this->_add($cb = new jsCallback(), ['desired_name' => 'submit', 'POST_trigger' => true]);
+        $this->_add($cb = new jsCallback(), ['desired_name' => 'submit', 'postTrigger' => true]);
 
         $this->add(new View(['element' => 'input']))
-            ->setAttr('name', $cb->name)
+            ->setAttr('name', $cb->postTrigger)
             ->setAttr('value', 'submit')
             ->setStyle(['display' => 'none']);
 
         $cb->set(function () {
-            $caught = function ($e) {
-                return new jsExpression('$([html]).modal("show")', [
-                    'html' => '<div class="ui fullscreen modal"> <i class="close icon"></i> <div class="header"> '.
-                    htmlspecialchars(get_class($e)).
-                    ' </div> <div class="content"> '.
-                    ($e instanceof \atk4\core\Exception ? $e->getHTML() : nl2br(htmlspecialchars($e->getMessage())))
-                    .' </div> </div>',
-                ]);
+            $caught = function ($e, $useWindow) {
+                $html = '<div class="header"> '.
+                        htmlspecialchars(get_class($e)).
+                        ' </div> <div class="content"> '.
+                        ($e instanceof \atk4\core\Exception ? $e->getHTML() : nl2br(htmlspecialchars($e->getMessage()))).
+                        ' </div>';
+                $this->app->terminate(json_encode(['success' => false, 'message' => $html, 'useWindow' => $useWindow]));
             };
 
             try {
@@ -414,16 +486,17 @@ class Form extends View //implements \ArrayAccess - temporarily so that our buil
 
                 return $response;
             } catch (\Error $e) {
-                return $caught($e);
+                return $caught($e, false);
             } catch (\Exception $e) {
-                return $caught($e);
+                return $caught($e, true);
             }
 
             return $response;
         });
 
+        //var_Dump($cb->getURL());
         $this->js(true)
-            ->api(['url' => $cb->getURL(),  'method' => 'POST', 'serializeForm' => true])
+            ->api(['url' => $cb->getJSURL(),  'method' => 'POST', 'serializeForm' => true])
             ->form(['inline' => true, 'on' => 'blur']);
 
         $this->on('change', 'input', $this->js()->form('remove prompt', new jsExpression('$(this).attr("name")')));

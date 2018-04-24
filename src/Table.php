@@ -6,14 +6,16 @@ namespace atk4\ui;
 
 class Table extends Lister
 {
-    use \atk4\core\HookTrait;
-
     // Overrides
     public $defaultTemplate = 'table.html';
     public $ui = 'table';
     public $content = false;
 
     /**
+     * TODO: is this used??
+     *
+     * @var null
+     *
      * If table is part of Grid or CRUD, we want to reload that instead of grid.
      */
     public $reload = null;
@@ -23,7 +25,7 @@ class Table extends Lister
      * when you pass it to addColumn(). If you omit the argument, then a column of a type 'Generic' will be
      * used.
      *
-     * @var Column\Generic
+     * @var TableColumn\Generic
      */
     public $default_column = null;
 
@@ -71,34 +73,51 @@ class Table extends Lister
      *
      * @var Template
      */
-    protected $t_head;
+    public $t_head;
 
     /**
      * Contain the template for the "Body" type row.
      *
      * @var Template
      */
-    protected $t_row;
+    public $t_row;
 
     /**
      * Contain the template for the "Foot" type row.
      *
      * @var Template
      */
-    protected $t_totals;
+    public $t_totals;
 
     /**
      * Contains the output to show if table contains no rows.
      *
      * @var Template
      */
-    protected $t_empty;
+    public $t_empty;
 
-    /** @var bool */
-    public $sortable = false;
+    /**
+     * Set this if you want table to appear as sortable. This does not add any
+     * mechanic of actual sorting - either implement manually or use Grid.
+     *
+     * @var null|bool
+     */
+    public $sortable = null;
 
+    /**
+     * When $sortable is true, you can specify which column will appear to have
+     * active sorting on it.
+     *
+     * @var string
+     */
     public $sort_by = null;
 
+    /**
+     * When $sortable is true, and $sort_by is set, you can set this to
+     * "ascending" or "descending".
+     *
+     * @var string
+     */
     public $sort_order = null;
 
     public function __construct($class = null)
@@ -124,7 +143,7 @@ class Table extends Lister
      * @param array|string|object|null $columnDecorator
      * @param array|string|object|null $field
      *
-     * @return Column\Generic
+     * @return TableColumn\Generic
      */
     public function addColumn($name, $columnDecorator = null, $field = null)
     {
@@ -196,10 +215,16 @@ class Table extends Lister
         return $columnDecorator;
     }
 
+    /**
+     * Add column Decorator.
+     *
+     * @param string                     $name      Column name
+     * @param string|TableColumn/Generic $decorator
+     */
     public function addDecorator($name, $decorator)
     {
         if (!$this->columns[$name]) {
-            throw new Exceptino(['No such column, cannot decorate', 'name' => $name]);
+            throw new Exception(['No such column, cannot decorate', 'name' => $name]);
         }
         $decorator = $this->_add($this->factory($decorator, ['table' => $this], 'TableColumn'));
 
@@ -207,6 +232,23 @@ class Table extends Lister
             $this->columns[$name] = [$this->columns[$name]];
         }
         $this->columns[$name][] = $decorator;
+    }
+
+    /**
+     * Return array of column decorators for particular column.
+     *
+     * @param string $name Column name
+     *
+     * @return array
+     */
+    public function getColumnDecorators($name)
+    {
+        $dec = $this->columns[$name];
+        if (!is_array($dec)) {
+            $dec = [$dec];
+        }
+
+        return $dec;
     }
 
     /**
@@ -232,6 +274,7 @@ class Table extends Lister
 
     protected $typeToDecorator = [
         'password' => 'Password',
+        'money'    => 'Money',
         'text'     => 'Text',
         'boolean'  => ['Status', ['positive' => [true], 'negative' => ['false']]],
     ];
@@ -285,14 +328,12 @@ class Table extends Lister
     }
 
     /**
-     * Init method will create one column object that will be used to render
+     * initChunks method will create one column object that will be used to render
      * all columns in the table unless you have specified a different
      * column object.
      */
-    public function init()
+    public function initChunks()
     {
-        parent::init();
-
         if (!$this->t_head) {
             $this->t_head = $this->template->cloneRegion('Head');
             $this->t_row_master = $this->template->cloneRegion('Row');
@@ -333,7 +374,7 @@ class Table extends Lister
                 }
             }
         } elseif ($columns === false) {
-            return;
+            return $this->model;
         }
 
         foreach ($columns as $column) {
@@ -511,7 +552,6 @@ class Table extends Lister
                                 $t[$key] = ($t[$key] === null ? 0 : $t[$key]);
                                 // increment
                                 $t[$key]++;
-var_dump($t);
                                 break;
                             case 'min':
                                 // set initial value

@@ -8,42 +8,98 @@ class AutoComplete extends Input
 {
     public $defaultTemplate = 'formfield/autocomplete.html';
     public $ui = 'input';
-    public $searchClassName = 'search';
+
+    /**
+     * Object used to capture requests from the browser.
+     *
+     * @var callable
+     */
     public $callback;
 
-    public $empty = '...';  // set this to true, to permit "empty" selection. If you set it to string, it will be used as a placeholder for empty value.
+    /**
+     * Set this to true, to permit "empty" selection. If you set it to string, it will be used as a placeholder for empty value.
+     *
+     * @var string
+     */
+    public $empty = '...';
 
+    /**
+     * Either set this to array of fields which must be searched (e.g. "name", "surname"), or define this
+     * as a callback to be executed callback($model, $search_string);.
+     *
+     * If left null, then search will be performed on a model's title field
+     *
+     * @var array|Closure
+     */
     public $search;
 
-    public $plus = false; // set this to cerate right-aligned button for adding a new a new record
+    /**
+     * Set this to create right-aligned button for adding a new a new record.
+     *
+     * true = will use "Add new" label
+     * string = will use your string
+     *
+     * @var null|bool|string
+     */
+    public $plus = false;
+
+    /**
+     * Sets the max. amount of records that are loaded. The default 10
+     * displays nicely in UI.
+     *
+     * @var int
+     */
+    public $limit = 10;
+
+    /**
+     * Semantic UI uses cache to remember choices. For dynamic sites this may be dangerous, so
+     * it's disabled by default. To switch cache on, set 'cache'=>'local'.
+     *
+     * Use this apiConfig variable to pass API settings to Semantic UI in .dropdown()
+     *
+     * @var array
+     */
+    public $apiConfig = ['cache' => false];
+
+    /**
+     * Semantic UI dropdown module settings.
+     * Use this setting to configure various dropdown module settings
+     * to use with Autocomplete.
+     *
+     * For example, using this setting will automatically submit
+     * form when field value is changes.
+     * $form->addField('field', ['AutoComplete', 'settings'=>['allowReselection' => true,
+     *                           'selectOnKeydown' => false,
+     *                           'onChange'        => new atk4\ui\jsExpression('function(value,t,c){
+     *                                                          if ($(this).data("value") !== value) {
+     *                                                            $(this).parents(".form").form("submit");
+     *                                                            $(this).data("value", value);
+     *                                                          }
+     *                                                         }'),
+     *                          ]]);
+     *
+     * @var array
+     */
+    public $settings = [];
 
     public function init()
     {
         parent::init();
 
-        $this->callback = $this->add('CallbackLater');
-        $this->callback->set([$this, 'getData']);
-
         $this->template->set('input_id', $this->name.'-ac');
 
         $this->template->set('place_holder', $this->placeholder);
 
-        $chain = new jQuery('#'.$this->name.'-ac');
-
-        $chain->dropdown([
-            'fields'      => ['name' => 'name', 'value' => 'id'/*, 'text' => 'description'*/],
-            'apiSettings' => [
-                'url' => $this->getCallbackURL().'&q={query}',
-            ],
-            /*'filterRemoteData'  => true,*/
-        ]);
-        $this->js(true, $chain);
-
         if ($this->plus) {
-            $this->action = $this->factory(['Button', 'Add new']);
+            $this->action = $this->factory(['Button', is_string($this->plus) ? $this->plus : 'Add new']);
         }
         //var_Dump($this->model->get());
-        $vp = $this->app->add('VirtualPage');
+        if ($this->form) {
+            $vp = $this->form->add('VirtualPage');
+        } else {
+            $vp = $this->owner->add('VirtualPage');
+        }
+
         $vp->set(function ($p) {
             $f = $p->add('Form');
             $f->setModel($this->model);
@@ -54,12 +110,12 @@ class AutoComplete extends Input
                 $modal_chain = new jQuery('.atk-modal');
                 $modal_chain->modal('hide');
                 $ac_chain = new jQuery('#'.$this->name.'-ac');
-                $ac_chain->dropdown('set value', $id)->dropdown('set text', $f->model['name']);
+                $ac_chain->dropdown('set value', $id)->dropdown('set text', $f->model->getTitle());
 
                 return [
                     $modal_chain,
                     $ac_chain,
-                    ];
+                ];
             });
         });
         if ($this->action) {
@@ -72,7 +128,7 @@ class AutoComplete extends Input
      */
     public function getCallbackURL()
     {
-        return $this->callback->getURL();
+        return $this->callback->getJSURL();
     }
 
     public function getData()
@@ -80,7 +136,7 @@ class AutoComplete extends Input
         if (!$this->model) {
             $this->app->terminate(json_encode([['id' => '-1', 'name' => 'Model must be set for AutoComplete']]));
         }
-        $this->model->setLimit(10);
+        $this->model->setLimit($this->limit);
         if (isset($_GET['q'])) {
             if ($this->search instanceof Closure) {
                 $this->search($this->model, $_GET['q']);
@@ -93,10 +149,14 @@ class AutoComplete extends Input
             }
         }
 
-        $data = $this->model->export([$this->model->id_field, $this->model->title_field]);
+        $data = [];
+        $res = $this->model->export([$this->model->id_field, $this->model->title_field]);
+        foreach ($res as $item) {
+            $data[] = ['id' => $item[$this->model->id_field], 'name' => $item[$this->model->title_field]];
+        }
 
         if ($this->empty) {
-            array_unshift($data, [$this->model->id_field => 0, $this->model->title_field => $this->empty]);
+            array_unshift($data, ['id' => 0, 'name' => $this->empty]);
         }
 
         $this->app->terminate(json_encode([
@@ -117,5 +177,48 @@ class AutoComplete extends Input
             'id'    => $this->id.'_input',
             'value' => $this->getValue(),
         ]);
+    }
+
+    /**
+     * Set Semantic-ui Api settings to use with dropdown.
+     *
+     * @param array $config
+     *
+     * @return $this
+     */
+    public function setApiConfig($config)
+    {
+        $this->apiConfig = array_merge($this->apiConfig, $config);
+
+        return $this;
+    }
+
+    /**
+     * Override this method if you want to add more logic to the initialization of the
+     * auto-complete field.
+     *
+     * @param jQuery
+     */
+    protected function initDropdown($chain)
+    {
+        $settings = array_merge([
+            'fields'      => ['name' => 'name', 'value' => 'id'/*, 'text' => 'description'*/],
+            'apiSettings' => array_merge(['url' => $this->getCallbackURL().'&q={query}'], $this->apiConfig),
+        ], $this->settings);
+
+        $chain->dropdown($settings);
+    }
+
+    public function renderView()
+    {
+        $this->callback = $this->add('Callback');
+        $this->callback->set([$this, 'getData']);
+
+        $chain = new jQuery('#'.$this->name.'-ac');
+
+        $this->initDropdown($chain);
+
+        $this->js(true, $chain);
+        parent::renderView();
     }
 }
