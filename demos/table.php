@@ -3,8 +3,6 @@
 date_default_timezone_set('UTC');
 include 'init.php';
 
-
-
 // 1st table
 $bb = $app->add(['View', 'ui' => 'buttons']);
 $table = $app->add(['Table', 'celled' => true]);
@@ -34,10 +32,9 @@ $table->addHook('getHTMLTags', function ($table, $row) {
 });
 
 $table->addTotals([
-    'name' => 'Totals:',
+    'name'   => 'Totals:',
     'salary' => ['sum'],
 ]);
-
 
 // 2nd table
 $my_array = [
