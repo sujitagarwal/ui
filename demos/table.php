@@ -3,6 +3,8 @@
 date_default_timezone_set('UTC');
 include 'init.php';
 
+
+
 // 1st table
 $bb = $app->add(['View', 'ui' => 'buttons']);
 $table = $app->add(['Table', 'celled' => true]);
@@ -14,7 +16,7 @@ $bb->on('click', $table->js()->reload());
 
 $table->setModel(new SomeData(), false);
 
-$table->addColumn('name', new \atk4\ui\TableColumn\Link(['details', 'id' => '{$id}']));
+$table->addColumn('name', new \atk4\ui\TableColumn\Link(['details'], ['id' => 'id']));
 $table->addColumn('surname', new \atk4\ui\TableColumn\Template('{$surname}'))->addClass('warning');
 $table->addColumn('title', new \atk4\ui\TableColumn\Status([
     'positive' => ['Prof.'],
@@ -32,9 +34,11 @@ $table->addHook('getHTMLTags', function ($table, $row) {
 });
 
 $table->addTotals([
-    'name'   => 'Totals:',
+    'name'   => 'Total {$_row_count} rows:',
     'salary' => ['sum'],
 ]);
+
+
 
 // 2nd table
 $my_array = [
