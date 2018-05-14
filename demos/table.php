@@ -35,16 +35,16 @@ $table->addTotals([
     'name'   => 'Total {$_row_count} rows:',
     'surname'=> [
         // longest surname
-        'compare'=>function ($total, $value, $model) {
+        'compare'=> function ($total, $value, $model) {
             return strlen($value) > strlen($total) ? $value : $total;
         },
-        'title'=>function ($total, $model) {
-            return "Shortes is: ".$total;
-        }
+        'title'=> function ($total, $model) {
+            return 'Shortes is: '.$total;
+        },
     ],
     'salary' => [
-        'init'=>'123',
-        'update'=>null,
+        'init'  => '123',
+        'update'=> null,
     ],
 ]);
 
@@ -58,17 +58,13 @@ $my_array = [
 
 $table = $app->add('Table');
 
-
-
 $table->setSource($my_array, ['name']);
 
 $table->addColumn('no');
 
-$table->addHook('beforeRow', function($t) {
+$table->addHook('beforeRow', function ($t) {
     $t->model['no'] = @++$t->npk;
 });
-
-
 
 //$table->addColumn('name');
 $table->addColumn('surname', ['Link', 'url' => 'details.php?surname={$surname}']);
