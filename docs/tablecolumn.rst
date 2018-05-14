@@ -1,7 +1,8 @@
 
-.. _tablecolumn:
 
 .. php:namespace:: atk4\ui
+
+.. _tablecolumn:
 
 =======================
 Table Column Decorators
