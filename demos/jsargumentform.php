@@ -69,7 +69,6 @@ class jsAction extends \atk4\ui\jsExpression
 }
 
 foreach ($country->getActions() as $action) {
-
     $ex = $app->add(new \atk4\ui\ActionExecutor\UserAction())->setAction($action);
     $ex->assignTrigger($buttons->add(['Button', $action->getDescription()]));
     //$buttons->add(['Button', $action->getDescription()])->on('click', $ex->jsTrigger());
@@ -99,6 +98,3 @@ $field = $app->add(new \atk4\ui\FormField\Line(['caption' => 'Enter model id']))
 //
 //$btn_edit->on('click', new jsArgumentForm($country->getAction('edit'), $vp_edit, $field->jsInput()->val(), $form));
 //$btn_add->on('click', new jsArgumentForm($country->getAction('add'), $vp_add));
-
-
-

@@ -17,8 +17,6 @@ class UserAction extends Modal implements Interface_
     {
         parent::init();
         $this->observeChanges();
-
-
     }
 
     /**
@@ -31,7 +29,6 @@ class UserAction extends Modal implements Interface_
         $this->action = $action;
 
         if ($this->action->preview) {
-
         }
 
         return $this;
