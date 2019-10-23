@@ -121,8 +121,8 @@ class CRUD extends Grid
 
         foreach ($m->getActions(Generic::SINGLE_RECORD) as $single_record_action) {
             $selector = $this->addGridButton(new Button($single_record_action->getDescription()));
-            $success = function($ex, $m, $id) {
-              switch ($ex->action->short_name) {
+            $success = function ($ex, $m, $id) {
+                switch ($ex->action->short_name) {
                   case 'edit':
                   case 'save':
                       $js = $this->jsSave($this->notifyDefault);
@@ -131,7 +131,8 @@ class CRUD extends Grid
                       $js = $this->table->js()->find('tr[data-id='.$id.']')->transition('fade left');
                       break;
               }
-              return $js;
+
+                return $js;
             };
             $act = $this->app->add(new \atk4\ui\ActionExecutor\UserAction())->setAction($single_record_action);
             $ex = $act->assignTrigger($this->table, [$act->name => $this->table->jsRow()->data('id')], 'click', $selector, new jQuery());
