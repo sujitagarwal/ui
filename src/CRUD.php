@@ -46,7 +46,7 @@ class CRUD extends Grid
     public $itemCreate = null;
 
     /** @var array Default action to perform when adding or editing is successful * */
-    public $notifyDefault = ['jsNotify', 'content' => 'Data is saved!', 'color'   => 'green'];
+    public $notifyDefault = ['jsToast', 'Data is saved!'];
 
     /** @var array Action to perform when adding is successful * */
     public $notifyCreate = null;
@@ -120,7 +120,24 @@ class CRUD extends Grid
         }
 
         foreach ($m->getActions(Generic::SINGLE_RECORD) as $single_record_action) {
-            $this->addUserAction($single_record_action);
+            $selector = $this->addGridButton(new Button($single_record_action->getDescription()));
+            $success = function($ex, $m, $id) {
+              switch ($ex->action->short_name) {
+                  case 'edit':
+                  case 'save':
+                      $js = $this->jsSave($this->notifyDefault);
+                      break;
+                  case 'delete':
+                      $js = $this->table->js()->find('tr[data-id='.$id.']')->transition('fade left');
+                      break;
+              }
+              return $js;
+            };
+            $act = $this->app->add(new \atk4\ui\ActionExecutor\UserAction())->setAction($single_record_action);
+            $ex = $act->assignTrigger($this->table, [$act->name => $this->table->jsRow()->data('id')], 'click', $selector, new jQuery());
+            $ex->jsSuccess = $success;
+
+//            $this->addUserAction($single_record_action);
         }
 
         return $this->model;
@@ -258,7 +275,7 @@ class CRUD extends Grid
     {
         return [
             // close modal
-            new jsExpression('$(".atk-dialog-content").trigger("close")'),
+            //new jsExpression('$(".atk-dialog-content").trigger("close")'),
 
             // display notification
             $this->factory($notifier, null, 'atk4\ui'),

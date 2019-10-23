@@ -357,6 +357,15 @@ class Grid extends View
         return $this->actions->addAction($button, $action, $confirm);
     }
 
+    public function addGridButton($button)
+    {
+        if (!$this->actions) {
+            $this->actions = $this->table->addColumn(null, $this->actionDecorator);
+        }
+
+        return $this->actions->addButton($button);
+    }
+
     /**
      * An array of column name where filter is needed.
      * Leave empty to include all column in grid.

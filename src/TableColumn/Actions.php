@@ -20,6 +20,26 @@ class Actions extends Generic
         $this->addClass('right aligned');
     }
 
+    public function addButton($button)
+    {
+        $name = $this->name.'_action_'.(count($this->actions) + 1);
+
+        if (!is_object($button)) {
+            $button = $this->factory('Button', [$button, 'id' => false], 'atk4\ui');
+        }
+        if ($button->icon && !is_object($button->icon)) {
+            $button->icon = $this->factory('Icon', [$button->icon, 'id' => false], 'atk4\ui');
+        }
+
+        $button->app = $this->table->app;
+
+        $this->actions[$name] = $button;
+        $button->addClass('b_'.$name);
+        $button->addClass('compact');
+
+        return '.b_'.$name;
+    }
+
     /**
      * Adds a new button which will execute $callback when clicked.
      *
