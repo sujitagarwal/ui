@@ -55,7 +55,7 @@ class Link extends Table\Column
      */
     public $args = [];
 
-    /** @var bool use value as label of the link */
+    /** @var bool|string use value as label of the link */
     public $use_label = true;
 
     /**
@@ -136,7 +136,11 @@ class Link extends Table\Column
 
         $label = '';
         if ($this->use_label) {
-            $label = $field ? ('{$' . $field->short_name . '}') : '[Link]';
+            if ($this->use_label === true) {
+                $label = $field ? ('{$' . $field->short_name . '}') : '[Link]';
+            } else {
+                $label = $this->use_label;
+            }
         }
 
         $class = '';
