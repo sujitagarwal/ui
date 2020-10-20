@@ -467,7 +467,14 @@ class App
         // Set js bundle dynamic loading path.
         $this->html->template->tryDangerouslySetHtml(
             'InitJsBundle',
-            (new JsExpression('window.__atkBundlePublicPath = [];', [$this->cdn['atk']]))->jsRender()
+            (new JsExpression('window.__atkBundlePublicPath = [];' . "\n" . '{}', [
+            $this->cdn['atk'],
+            <<<'EOF'
+document.addEventListener('DOMContentLoaded', (event) => {
+    window.snapshotAfterLoad = document.documentElement.outerHTML; // we need to clone this DOM or serialize incl. input values etc.
+});
+EOF
+            ]))->jsRender()
         );
     }
 
