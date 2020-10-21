@@ -22,6 +22,14 @@ $app->requireJs('https://fiduswriter.github.io/diffDOM/browser/diffDOM.js'); // 
 // demo view-source:http://fiduswriter.github.io/diffDOM/demo/index.html
 // man https://github.com/fiduswriter/diffDOM
 
+// alternatives:
+// https://www.npmjs.com/package/preact
+// https://www.npmjs.com/package/virtual-dom
+
+// https://vuejs.org/v2/guide/render-function.html#The-Virtual-DOM
+// https://vuejs.org/v2/api/#Vue-compile
+// https://stackoverflow.com/questions/32106155/can-you-force-vue-js-to-reload-re-render
+
 \atk4\ui\Button::addTo($app, ['Reload but keep custom changes'])->js('click', new \atk4\ui\JsExpression('{}', [
     'var jsRenderFunc = function () { ' . (new \atk4\ui\JsReload($v))->jsRender() . ' };'
     . 'var reloadUrl = ' . (new \atk4\ui\JsExpression('[]', [$v->jsUrl(['__atk_reload' => $v->name])]))->jsRender() . ';'
