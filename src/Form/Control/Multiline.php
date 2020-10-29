@@ -237,7 +237,7 @@ class Multiline extends Form\Control
         parent::init();
 
         if (!$this->multiLineTemplate) {
-            $this->multiLineTemplate = new HtmlTemplate('<div id="{$_id}" class="ui"><atk-multiline v-bind="initData"></atk-multiline><div class="ui hidden divider"></div>{$Input}</div>');
+            $this->multiLineTemplate = new HtmlTemplate\DomNode('<div id="{$_id}" class="ui"><atk-multiline v-bind="initData"></atk-multiline><div class="ui hidden divider"></div>{$Input}</div>');
         }
 
         if (!isset($this->options['atkDateOptions']['phpDateFormat'])) {
