@@ -18,7 +18,6 @@ module.exports = {
         atk: true,
         $: true,
         jQuery: true,
-        flatpickr: true,
     },
     rules: {
         indent: ['error', 4],

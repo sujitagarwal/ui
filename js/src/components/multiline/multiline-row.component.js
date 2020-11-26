@@ -103,7 +103,6 @@ export default {
         getComponentProps: function (column) {
             let props = {};
             const userOptions = column.fieldOptions || {};
-            const flatpickrConfig = { ...this.getRootData().data.options.flatpickr || {} };
 
             switch (column.component) {
             case 'dropdown':
@@ -118,16 +117,18 @@ export default {
                 props.options = this.getEnumValues(userOptions.values || null);
                 break;
             case 'date':
-            case 'datetime':
-            case 'time':
-                if (column.component === 'datetime' || column.component === 'time') {
-                    flatpickrConfig.enableTime = true;
-                    flatpickrConfig.time_24hr = true;
-                }
-                if (column.component === 'time') {
-                    flatpickrConfig.noCalendar = true;
-                }
-                props = { config: { ...flatpickrConfig, ...userOptions } };
+                props = {
+                    datePickerProps: {
+                        locale: 'en-En',
+                        masks: { input: 'YYYY-MM-DD' },
+                        popover: { placement: 'bottom', visibility: 'click' },
+                        ...this.getRootData().data.options.datePickerProps || {},
+                    },
+                    atkDateOptions: {
+                        phpDateFormat: 'Y-m-d',
+                        ...this.getRootData().data.options.atkDateOptions || {},
+                    },
+                };
                 break;
             default:
                 props = Object.assign(props, userOptions);
@@ -168,8 +169,6 @@ export default {
                     component = 'atk-multiline-textarea';
                     break;
                 case 'date':
-                case 'time':
-                case 'datetime':
                     component = 'atk-date-picker';
                     break;
                 default:

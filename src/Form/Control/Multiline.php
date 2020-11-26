@@ -107,8 +107,13 @@ class Multiline extends Form\Control
         'suiTable' => [],
         // sui-dropdown props.
         'suiDropdown' => [],
-        // flatpickr props - Will be applied globally.
-        'flatpickr' => [],
+        // Set how input handle php date format.
+        'atkDateOptions' => [],
+        // Set how v-date-picker options (props).
+        'datePickerProps' => [
+            'locale' => 'en-En',
+            'masks' => ['input' => 'YYYY-MM-DD'],
+        ],
     ];
 
     /**
@@ -233,6 +238,10 @@ class Multiline extends Form\Control
 
         if (!$this->multiLineTemplate) {
             $this->multiLineTemplate = new HtmlTemplate('<div id="{$_id}" class="ui"><atk-multiline v-bind="initData"></atk-multiline><div class="ui hidden divider"></div>{$Input}</div>');
+        }
+
+        if (!isset($this->options['atkDateOptions']['phpDateFormat'])) {
+            $this->options['atkDateOptions']['phpDateFormat'] = $this->getApp()->ui_persistence->date_format;
         }
 
         /* No need for this anymore. See: https://github.com/atk4/ui/commit/8ec4d22cf9dcbd4969d9c88d8f09b705ca8798a6
@@ -580,10 +589,6 @@ class Multiline extends Form\Control
                     return 'textarea';
                 case 'date':
                     return 'date';
-                case 'time':
-                    return 'time';
-                case 'datetime':
-                    return 'datetime';
                 default: return 'input';
             }
         }
@@ -637,12 +642,6 @@ class Multiline extends Form\Control
                 }
 
                 break;
-            case 'date':
-            case 'datetime':
-            case 'time':
-              $options['dateFormat'] = $options['dateFormat'] ?? $this->getApp()->ui_persistence->{$component . '_format'};
-
-               break;
         }
 
         return $options;
