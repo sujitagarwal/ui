@@ -124,8 +124,9 @@ class Crud extends Grid
             $this->useMenuActions = count($model->getUserActions()) > 4;
         }
 
-        foreach ($this->_getModelActions(Model\UserAction::APPLIES_TO_SINGLE_RECORD) as $action) {
-            $action->ui['executor'] = $this->initActionExecutor($action);
+        foreach ($this->filterModelActions(Model\UserAction::APPLIES_TO_SINGLE_RECORD) as $action) {
+            $this->initActionExecutor($action);
+
             if ($this->useMenuActions) {
                 $this->addActionMenuItem($action);
             } else {
@@ -134,18 +135,23 @@ class Crud extends Grid
         }
 
         if ($this->menu) {
-            foreach ($this->_getModelActions(Model\UserAction::APPLIES_TO_NO_RECORDS) as $action) {
+            foreach ($this->filterModelActions(Model\UserAction::APPLIES_TO_NO_RECORDS) as $action) {
                 if ($action->enabled) {
-                    $action->ui['executor'] = $this->initActionExecutor($action);
-                    $this->menuItems[$action->short_name] = $this->menu->addItem(
+                    $this->initActionExecutor($action);
+
+                    $menuItem = $this->menu->addItem(
                         array_merge(
                             [$action->getCaption()],
                             $action->modifier === Model\UserAction::MODIFIER_CREATE ? ['icon' => 'plus'] : []
                         )
                     );
+
+                    // Setup js for firing menu action
+                    $this->container->js(true, $menuItem->on('click.atk_crud_item', $action));
+
+                    $this->menuItems[$action->short_name] = $menuItem;
                 }
             }
-            $this->setItemsAction();
         }
 
         return $this->model;
@@ -165,12 +171,10 @@ class Crud extends Grid
      * for UserAction onStep field. Callback will receive executor form where you
      * can setup Input field via javascript prior to display form or change form submit event
      * handler.
-     *
-     * @return object
      */
-    protected function initActionExecutor(Model\UserAction $action)
+    protected function initActionExecutor(Model\UserAction $action): void
     {
-        $executor = $this->getExecutor($action);
+        $executor = $this->createActionExecutor($action);
         $executor->onHook(UserAction\BasicExecutor::HOOK_AFTER_EXECUTE, function ($ex, $return, $id) use ($action) {
             return $this->jsExecute($return, $action);
         });
@@ -186,7 +190,7 @@ class Crud extends Grid
             }
         }
 
-        return $executor;
+        $action->ui['executor'] = $executor;
     }
 
     /**
@@ -260,21 +264,11 @@ class Crud extends Grid
     }
 
     /**
-     * Setup js for firing menu action.
-     */
-    protected function setItemsAction()
-    {
-        foreach ($this->menuItems as $actionName => $item) {
-            $this->container->js(true, $item->on('click.atk_crud_item', $this->model->getUserAction($actionName)));
-        }
-    }
-
-    /**
      * Return proper action executor base on model action.
      *
      * @return object
      */
-    protected function getExecutor(Model\UserAction $action)
+    protected function createActionExecutor(Model\UserAction $action)
     {
         if (isset($action->ui['executor'])) {
             return Factory::factory($action->ui['executor']);
@@ -314,7 +308,7 @@ class Crud extends Grid
     /**
      * Return proper action need to setup menu or action column.
      */
-    private function _getModelActions(string $appliesTo): array
+    private function filterModelActions(string $appliesTo): array
     {
         $actions = [];
         if ($appliesTo === Model\UserAction::APPLIES_TO_SINGLE_RECORD && !empty($this->singleScopeActions)) {
