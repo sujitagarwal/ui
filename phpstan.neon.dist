@@ -6,6 +6,9 @@ parameters:
         - cache/
         - build/
         - vendor/
+    # TODO remove once https://github.com/phpstan/phpstan/issues/4283 is fixed
+    parallel:
+        maximumNumberOfProcesses: 1
 
     # TODO review once we drop PHP 7.x support
     treatPhpDocTypesAsCertain: false
